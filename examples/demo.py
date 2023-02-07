@@ -14,6 +14,7 @@ from naslib.optimizers import (
 )
 
 from naslib.search_spaces import (
+    NasBench101SearchSpace,
     NasBench301SearchSpace,
     SimpleCellSearchSpace,
     NasBench201SearchSpace,
@@ -45,16 +46,18 @@ supported_optimizers = {
 }
 
 # Changing the search space is one line of code
-search_space = SimpleCellSearchSpace()
+# search_space = SimpleCellSearchSpace()
+search_space = NasBench101SearchSpace()
 # search_space = graph.NasBench101SearchSpace()
 # search_space = HierarchicalSearchSpace()
 # search_space = NasBench301SearchSpace()
 # search_space = NasBench201SearchSpace()
 
+dataset_api = utils.get_dataset_api(search_space='nasbench101')
 # Changing the optimizer is one line of code
 # optimizer = supported_optimizers[config.optimizer]
-optimizer = supported_optimizers["drnas"]
-optimizer.adapt_search_space(search_space)
+optimizer = supported_optimizers["bananas"]
+optimizer.adapt_search_space(search_space, dataset_api=dataset_api)
 
 # Start the search and evaluation
 trainer = Trainer(optimizer, config)
@@ -64,4 +67,4 @@ if not config.eval_only:
     trainer.search(resume_from=checkpoint)
 
 checkpoint = utils.get_last_checkpoint(config, search=False) if config.resume else ""
-trainer.evaluate(resume_from=checkpoint)
+trainer.evaluate(resume_from=checkpoint, dataset_api=dataset_api)
