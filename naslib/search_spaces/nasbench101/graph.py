@@ -77,7 +77,7 @@ class NasBench101SearchSpace(Graph):
                 'ops': ops
             }
 
-    def convert_to_graph(self, matrix: np.ndarray, ops: list):
+    def convert_to_graph(self, matrix: np.ndarray, ops: list) -> spektral.data.Graph:
         nodes = 67
         features_dict = {'input': 0, 'conv1x1-bn-relu': 1, 'conv3x3-bn-relu': 2, 'maxpool3x3': 3, 'output': 4,
                          'Classifier': 5, 'maxpool2x2': 6}
@@ -153,7 +153,7 @@ class NasBench101SearchSpace(Graph):
 
         return spektral.data.Graph(x=new_x, e=None, a=adj_matrix, y=None)
 
-    def surrogate_query(self, surrogate, graph: spektral.data.Graph):
+    def surrogate_query(self, surrogate, graph: spektral.data.Graph) -> Dict[str, float]:
         '''
         data: (x, a)
         x: (1, 67, feature)
@@ -163,9 +163,9 @@ class NasBench101SearchSpace(Graph):
         a = np.expand_dims(graph.a, axis=0)
 
         data = (x, a)
-        validation_accuracy = surrogate.predict(data)[0][0]
+        validation_accuracy = float(surrogate.predict(data)[0][0])
 
-        return {'train_accuracy': validation_accuracy, 'validation_accuracy': validation_accuracy, 'test_accuracy': validation_accuracy}
+        return {'train_accuracy': -1, 'validation_accuracy': validation_accuracy, 'test_accuracy': -1}
 
     def query(self,
               metric: Metric,
