@@ -1,6 +1,7 @@
 import numpy as np
 import copy
 import random
+import spektral
 import torch
 import torch.nn.functional as F
 from typing import *
@@ -76,6 +77,96 @@ class NasBench101SearchSpace(Graph):
                 'ops': ops
             }
 
+    def convert_to_graph(self, matrix: np.ndarray, ops: list):
+        nodes = 67
+        features_dict = {'input': 0, 'conv1x1-bn-relu': 1, 'conv3x3-bn-relu': 2, 'maxpool3x3': 3, 'output': 4,
+                         'Classifier': 5, 'maxpool2x2': 6}
+
+        # Node features X
+        new_x = np.zeros((nodes, len(features_dict)), dtype=float)  # nodes * (features + metadata + num_layer)
+
+        for now_layer in range(11 + 1):
+            if now_layer == 0 or now_layer == 4 or now_layer == 8:
+                if now_layer == 0:
+                    offset_idx = 0
+                elif now_layer == 4:
+                    offset_idx = 22
+                else:  # now_layer == 8
+                    offset_idx = 44
+
+                new_x[offset_idx][features_dict['conv3x3-bn-relu']] = 1  # stem is a 'conv3x3-bn-relu' type
+            else:
+                now_group = now_layer // 4 + 1
+                node_start_no = now_group + 7 * (now_layer - now_group)
+
+                for i in range(len(ops)):
+                    if i == len(ops) - 1:
+                        new_x[6 + node_start_no][features_dict[ops[i]]] = 1
+                    else:
+                        new_x[i + node_start_no][features_dict[ops[i]]] = 1
+
+        new_x[66][features_dict['Classifier']] = 1
+
+        # Adjacency matrix A
+        adj_matrix = np.zeros((nodes, nodes), dtype=float)
+        # 0 convbn 128
+        # 1 cell
+        # 8 cell
+        # 15 cell
+        # 22 maxpool
+        # 23 cell
+        # 30 cell
+        # 37 cell
+        # 44 maxpool
+        # 45 cell
+        # 52 cell
+        # 59 cell
+
+        for now_layer in range(11+1):
+            if now_layer == 0:
+                adj_matrix[0][1] = 1  # stem to input node
+            elif now_layer == 4:
+                adj_matrix[21][22] = 1  # output to maxpool
+                adj_matrix[22][23] = 1  # maxpool to input
+            elif now_layer == 8:
+                adj_matrix[43][44] = 1  # output to maxpool
+                adj_matrix[44][45] = 1  # maxpool to input
+            else:
+                now_group = now_layer // 4 + 1
+                node_start_no = now_group + 7 * (now_layer - now_group)
+                for i in range(matrix.shape[0]):
+                    if i == matrix.shape[0] - 1:
+                        if now_layer == 11:
+                            # to classifier
+                            adj_matrix[6 + node_start_no][nodes - 1] = 1
+                        else:
+                            # output node to next input node
+                            adj_matrix[6 + node_start_no][i + node_start_no + (7 - matrix.shape[0]) + 1] = 1
+                    else:
+                        for j in range(matrix.shape[1]):
+                            if matrix[i][j] == 1:
+                                if j == matrix.shape[0] - 1:
+                                    # X node to output node
+                                    adj_matrix[i + node_start_no][6 + node_start_no] = 1
+                                else:
+                                    adj_matrix[i + node_start_no][j + node_start_no] = 1
+
+        return spektral.data.Graph(x=new_x, e=None, a=adj_matrix, y=None)
+
+    def surrogate_query(self, surrogate, graph: spektral.data.Graph):
+        '''
+        data: (x, a)
+        x: (1, 67, feature)
+        a: (1, 67, 67)
+        '''
+        x = np.expand_dims(graph.x, axis=0)
+        a = np.expand_dims(graph.a, axis=0)
+
+        data = (x, a)
+        validation_accuracy = surrogate.predict(data)[0][0]
+
+        return {'train_accuracy': validation_accuracy, 'validation_accuracy': validation_accuracy, 'test_accuracy': validation_accuracy}
+
     def query(self,
               metric: Metric,
               dataset: str = "cifar10",
@@ -95,11 +186,8 @@ class NasBench101SearchSpace(Graph):
             raise NotImplementedError("Must pass in dataset_api to query nasbench101")
         assert epoch in [
             -1,
-            4,
-            12,
-            36,
             108,
-            None,
+            200,
         ], f"Metric is not available at epoch {epoch}. NAS-Bench-101 does not have full learning curve information. Available epochs are [4, 12, 36, and 108]."
 
         metric_to_nb101 = {
@@ -114,33 +202,24 @@ class NasBench101SearchSpace(Graph):
             raise NotImplementedError(
                 "Cannot yet query directly from the naslib object"
             )
+
         api_spec = dataset_api["api"].ModelSpec(**self.spec)
 
         if not dataset_api["nb101_data"].is_valid(api_spec):
             return -1
 
-        query_results = dataset_api["nb101_data"].query(api_spec)
+        query_results = self.surrogate_query(dataset_api['surrogate'], self.convert_to_graph(**self.spec))
+
         if full_lc:
-            vals = [
-                dataset_api["nb101_data"].query(api_spec, epochs=e)[
-                    metric_to_nb101[metric]
-                ]
-                for e in [4, 12, 36, 108]
-            ]
-            # return a learning curve with unique values only at 4, 12, 36, 108
-            nums = [4, 8, 20, 56]
-            lc = [val for i, val in enumerate(vals) for _ in range(nums[i])]
-            if epoch == -1:
-                return lc
-            else:
-                return lc[:epoch]
+            raise NotImplementedError()
 
         if metric == Metric.RAW:
             return query_results
         elif metric == Metric.TRAIN_TIME:
-            return query_results[metric_to_nb101[metric]]
+            return -1
         else:
-            return query_results[metric_to_nb101[metric]] * 100
+            print(query_results[metric_to_nb101[metric]])
+            return query_results[metric_to_nb101[metric]]
 
     def get_spec(self) -> dict:
         return self.spec

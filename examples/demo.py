@@ -1,6 +1,7 @@
 import logging
 import sys
-
+import keras
+import tensorflow as tf
 from naslib.defaults.trainer import Trainer
 from naslib.optimizers import (
     DARTSOptimizer,
@@ -45,6 +46,8 @@ supported_optimizers = {
     "bp": BasePredictor(config),
 }
 
+
+
 # Changing the search space is one line of code
 # search_space = SimpleCellSearchSpace()
 search_space = NasBench101SearchSpace()
@@ -53,7 +56,10 @@ search_space = NasBench101SearchSpace()
 # search_space = NasBench301SearchSpace()
 # search_space = NasBench201SearchSpace()
 
-dataset_api = utils.get_dataset_api(search_space='nasbench101')
+dataset_api = utils.get_dataset_api('nasbench101')
+weight_path = 'gin_conv_batch_filterTrue_a1_size95500_r1_m64_b256_dropout0.2_lr0.001_mlp(64, 64, 64, 64)_0'
+dataset_api['surrogate'] = keras.models.load_model(weight_path, custom_objects={'weighted_mse': tf.keras.losses.MeanSquaredError()})
+
 # Changing the optimizer is one line of code
 # optimizer = supported_optimizers[config.optimizer]
 optimizer = supported_optimizers["bananas"]
@@ -61,10 +67,6 @@ optimizer.adapt_search_space(search_space, dataset_api=dataset_api)
 
 # Start the search and evaluation
 trainer = Trainer(optimizer, config)
+trainer.search()
 
-if not config.eval_only:
-    checkpoint = utils.get_last_checkpoint(config) if config.resume else ""
-    trainer.search(resume_from=checkpoint)
-
-checkpoint = utils.get_last_checkpoint(config, search=False) if config.resume else ""
-trainer.evaluate(resume_from=checkpoint, dataset_api=dataset_api)
+#trainer.evaluate(dataset_api=dataset_api)
