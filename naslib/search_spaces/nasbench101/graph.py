@@ -153,7 +153,7 @@ class NasBench101SearchSpace(Graph):
 
         return spektral.data.Graph(x=new_x, e=None, a=adj_matrix, y=None)
 
-    def surrogate_query(self, surrogate, graph: spektral.data.Graph) -> Dict[str, float]:
+    def surrogate_query(self, surrogate, graph: spektral.data.Graph) -> Dict[Metric, Union[int, float]]:
         '''
         data: (x, a)
         x: (1, 67, feature)
@@ -165,7 +165,7 @@ class NasBench101SearchSpace(Graph):
         data = (x, a)
         validation_accuracy = float(surrogate.predict(data)[0][0])
 
-        return {'train_accuracy': -1, 'validation_accuracy': validation_accuracy, 'test_accuracy': -1}
+        return {Metric.TRAIN_ACCURACY: -1, Metric.VAL_ACCURACY: validation_accuracy, Metric.TEST_ACCURACY: -1}
 
     def query(self,
               metric: Metric,
@@ -218,8 +218,8 @@ class NasBench101SearchSpace(Graph):
         elif metric == Metric.TRAIN_TIME:
             return -1
         else:
-            print(query_results[metric_to_nb101[metric]])
-            return query_results[metric_to_nb101[metric]]
+            print(query_results[metric])
+            return query_results[metric]
 
     def get_spec(self) -> dict:
         return self.spec
@@ -432,7 +432,12 @@ def is_valid_edge(matrix: np.ndarray, edge: tuple) -> bool:
 
 
 if __name__ == '__main__':
+    import keras
+    import tensorflow as tf
     dataset_api = get_dataset_api('nasbench101', None)
+    weight_path = '../../../examples/gin_conv_batch_filterTrue_a1_size95500_r1_m64_b256_dropout0.2_lr0.001_mlp(64, 64, 64, 64)_0'
+    dataset_api['surrogate'] = keras.models.load_model(weight_path, custom_objects={
+        'weighted_mse': tf.keras.losses.MeanSquaredError()})
     search_space = NasBench101SearchSpace()
 
     for i in range(1):
@@ -442,6 +447,4 @@ if __name__ == '__main__':
         graph_hash = graph.get_hash()
         print(graph_hash)
 
-        x = torch.randn(2, 3, 32, 32)
-        result = graph(x)
-        print(result)
+        print(convert_tuple_to_spec(graph_hash))
