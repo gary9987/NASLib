@@ -5,6 +5,8 @@ import spektral
 import torch
 import torch.nn.functional as F
 from typing import *
+from enum import Enum
+
 
 from naslib.search_spaces.core.graph import Graph
 from naslib.search_spaces.core.query_metrics import Metric
@@ -23,6 +25,7 @@ NUM_VERTICES = 7
 OP_SPOTS = NUM_VERTICES - 2
 MAX_EDGES = 9
 
+MODEL_TYPE = Enum('MODEL_TYPE', 'KERAS ENSEMBLE')
 
 class NasBench101SearchSpace(Graph):
     """
@@ -31,7 +34,7 @@ class NasBench101SearchSpace(Graph):
 
     QUERYABLE = True
 
-    def __init__(self, n_classes=10):
+    def __init__(self, model_type: MODEL_TYPE, n_classes=10):
         super().__init__()
         self.num_classes = n_classes
         self.space_name = "nasbench101"
@@ -39,6 +42,7 @@ class NasBench101SearchSpace(Graph):
         self.labeled_archs = None
         self.instantiate_model = True
         self.sample_without_replacement = False
+        self.model_type = model_type
 
         self.add_edge(1, 2)
 
@@ -153,18 +157,26 @@ class NasBench101SearchSpace(Graph):
 
         return spektral.data.Graph(x=new_x, e=None, a=adj_matrix, y=None)
 
-    def surrogate_query(self, surrogate, graph: spektral.data.Graph) -> Dict[Metric, Union[int, float]]:
+    def convert_graph_to_keras_model_input(self, graph: spektral.data.Graph) -> Tuple[np.ndarray, np.ndarray]:
         '''
-        data: (x, a)
-        x: (1, 67, feature)
-        a: (1, 67, 67)
-        '''
+                data: (x, a)
+                x: (1, 67, feature)
+                a: (1, 67, 67)
+                '''
         x = np.expand_dims(graph.x, axis=0)
         a = np.expand_dims(graph.a, axis=0)
+        return (x, a)
 
-        data = (x, a)
-        validation_accuracy = float(surrogate.predict(data)[0][0])
+    def convert_graph_to_ndarry_input(self, graph: spektral.data.Graph) -> np.ndarray:
+        ret = graph.a.reshape((1, graph.a.shape[0] * graph.a.shape[1]))
+        ret = np.concatenate((ret, graph.x.reshape((1, graph.x.shape[0] * graph.x.shape[1]))), axis=1)
+        return np.array([np.squeeze(ret)])
 
+    def surrogate_query(self, model, data) -> Dict[Metric, Union[int, float]]:
+
+        #validation_accuracy = float(model.predict(data)[0][0])
+        validation_accuracy = float(model.predict(data))
+        #print(validation_accuracy)
         return {Metric.TRAIN_ACCURACY: -1, Metric.VAL_ACCURACY: validation_accuracy, Metric.TEST_ACCURACY: -1}
 
     def query(self,
@@ -208,7 +220,12 @@ class NasBench101SearchSpace(Graph):
         if not dataset_api["nb101_data"].is_valid(api_spec):
             return -1
 
-        query_results = self.surrogate_query(dataset_api['surrogate'], self.convert_to_graph(**self.spec))
+        graph_data = self.convert_to_graph(**self.spec)
+        if self.model_type == MODEL_TYPE.KERAS:
+            data = self.convert_graph_to_keras_model_input(graph_data)
+        elif self.model_type == MODEL_TYPE.ENSEMBLE:
+            data = self.convert_graph_to_ndarry_input((graph_data))
+        query_results = self.surrogate_query(dataset_api['surrogate'], data)
 
         if full_lc:
             raise NotImplementedError()
@@ -438,7 +455,7 @@ if __name__ == '__main__':
     weight_path = '../../../examples/gin_conv_batch_filterTrue_a1_size95500_r1_m64_b256_dropout0.2_lr0.001_mlp(64, 64, 64, 64)_0'
     dataset_api['surrogate'] = keras.models.load_model(weight_path, custom_objects={
         'weighted_mse': tf.keras.losses.MeanSquaredError()})
-    search_space = NasBench101SearchSpace()
+    search_space = NasBench101SearchSpace(model_type=MODEL_TYPE.ENSEMBLE)
 
     for i in range(1):
         graph = search_space.clone()
