@@ -93,12 +93,14 @@ class NasBench101SearchSpace(Graph):
             if now_layer == 0 or now_layer == 4 or now_layer == 8:
                 if now_layer == 0:
                     offset_idx = 0
+                    new_x[offset_idx][features_dict['conv3x3-bn-relu']] = 1  # stem is a 'conv3x3-bn-relu' type
                 elif now_layer == 4:
                     offset_idx = 22
+                    new_x[offset_idx][features_dict['maxpool2x2']] = 1
                 else:  # now_layer == 8
                     offset_idx = 44
+                    new_x[offset_idx][features_dict['maxpool2x2']] = 1
 
-                new_x[offset_idx][features_dict['conv3x3-bn-relu']] = 1  # stem is a 'conv3x3-bn-relu' type
             else:
                 now_group = now_layer // 4 + 1
                 node_start_no = now_group + 7 * (now_layer - now_group)
