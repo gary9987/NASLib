@@ -61,21 +61,19 @@ def get_nasbench201_api(dataset=None):
     """
     Load the NAS-Bench-201 data
     """
+
     datafiles = {
-        'cifar10': 'nb201_cifar10_full_training.pickle',
-        'cifar100': 'nb201_cifar100_full_training.pickle',
-        'ImageNet16-120': 'nb201_ImageNet16_full_training.pickle'
+        #'cifar10': 'nb201_cifar10_full_training.pickle',
+        #'cifar100': 'nb201_cifar100_full_training.pickle',
+        #'ImageNet16-120': 'nb201_ImageNet16_full_training.pickle'
+        'cifar10': 'NATS-tss-v1_0-3ffb9-simple.tar'
     }
 
-    datafile_path = os.path.join(
-        get_project_root(), 'data', datafiles[dataset])
-    assert os.path.exists(datafile_path), f'Could not find {datafile_path}. Please download {datafiles[dataset]} from \
-https://drive.google.com/drive/folders/1rwmkqyij3I24zn5GSO6fGv2mzdEfPIEa'
+    datafile_path = os.path.join(get_project_root(), 'data', datafiles[dataset])
+    from nats_bench import create
+    api = create(datafile_path, 'tss', fast_mode=True, verbose=False)
 
-    with open(datafile_path, 'rb') as f:
-        data = pickle.load(f)
-
-    return {"nb201_data": data}
+    return {'api': api} #, "nb201_data": data}
 
 
 def get_nasbench301_api(dataset):
