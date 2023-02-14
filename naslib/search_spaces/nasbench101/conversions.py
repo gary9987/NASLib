@@ -1,6 +1,8 @@
+from typing import Tuple
+
 import numpy as np
 import torch.nn as nn
-
+import spektral
 from nasbench_pytorch.model import Network
 from nasbench_pytorch.model import ModelSpec
 
@@ -65,3 +67,17 @@ def convert_tuple_to_spec(tup):
 
     return {"matrix": matrix, "ops": ops}
 
+def convert_graph_to_ndarry_input(graph: spektral.data.Graph) -> np.ndarray:
+    ret = graph.a.reshape((1, graph.a.shape[0] * graph.a.shape[1]))
+    ret = np.concatenate((ret, graph.x.reshape((1, graph.x.shape[0] * graph.x.shape[1]))), axis=1)
+    return np.array([np.squeeze(ret)])
+
+def convert_graph_to_keras_model_input(graph: spektral.data.Graph) -> Tuple[np.ndarray, np.ndarray]:
+    '''
+            data: (x, a)
+            x: (1, 67, feature)
+            a: (1, 67, 67)
+            '''
+    x = np.expand_dims(graph.x, axis=0)
+    a = np.expand_dims(graph.a, axis=0)
+    return (x, a)

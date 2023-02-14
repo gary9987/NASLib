@@ -11,7 +11,7 @@ from enum import Enum
 from naslib.search_spaces.core.graph import Graph
 from naslib.search_spaces.core.query_metrics import Metric
 from naslib.search_spaces.nasbench101.conversions import convert_spec_to_model, convert_spec_to_tuple, \
-    convert_tuple_to_spec
+    convert_tuple_to_spec, convert_graph_to_keras_model_input, convert_graph_to_ndarry_input
 from naslib.utils import get_dataset_api
 
 INPUT = "input"
@@ -26,6 +26,7 @@ OP_SPOTS = NUM_VERTICES - 2
 MAX_EDGES = 9
 
 MODEL_TYPE = Enum('MODEL_TYPE', 'KERAS ENSEMBLE')
+
 
 class NasBench101SearchSpace(Graph):
     """
@@ -159,20 +160,6 @@ class NasBench101SearchSpace(Graph):
 
         return spektral.data.Graph(x=new_x, e=None, a=adj_matrix, y=None)
 
-    def convert_graph_to_keras_model_input(self, graph: spektral.data.Graph) -> Tuple[np.ndarray, np.ndarray]:
-        '''
-                data: (x, a)
-                x: (1, 67, feature)
-                a: (1, 67, 67)
-                '''
-        x = np.expand_dims(graph.x, axis=0)
-        a = np.expand_dims(graph.a, axis=0)
-        return (x, a)
-
-    def convert_graph_to_ndarry_input(self, graph: spektral.data.Graph) -> np.ndarray:
-        ret = graph.a.reshape((1, graph.a.shape[0] * graph.a.shape[1]))
-        ret = np.concatenate((ret, graph.x.reshape((1, graph.x.shape[0] * graph.x.shape[1]))), axis=1)
-        return np.array([np.squeeze(ret)])
 
     def surrogate_query(self, model, data) -> Dict[Metric, Union[int, float]]:
 
@@ -224,9 +211,12 @@ class NasBench101SearchSpace(Graph):
 
         graph_data = self.convert_to_graph(**self.spec)
         if self.model_type == MODEL_TYPE.KERAS:
-            data = self.convert_graph_to_keras_model_input(graph_data)
+            data = convert_graph_to_keras_model_input(graph_data)
         elif self.model_type == MODEL_TYPE.ENSEMBLE:
-            data = self.convert_graph_to_ndarry_input((graph_data))
+            data = convert_graph_to_ndarry_input(graph_data)
+        else:
+            raise NotImplementedError()
+
         query_results = self.surrogate_query(dataset_api['surrogate'], data)
 
         if full_lc:

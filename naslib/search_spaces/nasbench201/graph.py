@@ -14,6 +14,15 @@ from naslib.search_spaces.nasbench201.conversions import (
     convert_naslib_to_op_indices,
     convert_naslib_to_str,
     convert_op_indices_to_str,
+    convert_arch_str_to_martrix_ops,
+    convert_matrix_ops_to_graph
+)
+from naslib.search_spaces.nasbench101.conversions import (
+    convert_graph_to_keras_model_input,
+    convert_graph_to_ndarry_input
+)
+from naslib.search_spaces.nasbench101.graph import (
+    MODEL_TYPE
 )
 
 from .primitives import ResNetBasicblock
@@ -38,7 +47,7 @@ class NasBench201SearchSpace(Graph):
 
     QUERYABLE = True
 
-    def __init__(self, n_classes=10, in_channels=3):
+    def __init__(self, model_type: MODEL_TYPE, n_classes=10, in_channels=3):
         super().__init__()
         self.num_classes = n_classes
         self.op_indices = None
@@ -49,6 +58,7 @@ class NasBench201SearchSpace(Graph):
         self.labeled_archs = None
         self.instantiate_model = True
         self.sample_without_replacement = False
+        self.model_type = model_type
 
         #
         # Cell definition
@@ -138,6 +148,13 @@ class NasBench201SearchSpace(Graph):
                 private_edge_data=True,
             )
 
+    def surrogate_query(self, model, data) -> Dict[Metric, np.ndarray]:
+        validation_accuracy = model.predict(data).flatten().astype(float)
+        # TODO train acc
+        return {Metric.TRAIN_ACCURACY: np.array([float(-1)]*validation_accuracy.shape[0]),
+                Metric.VAL_ACCURACY: validation_accuracy,
+                Metric.TEST_ACCURACY: np.array([float(-1)]*validation_accuracy.shape[0])}
+
     def query(
             self,
             metric: Metric,
@@ -182,34 +199,38 @@ class NasBench201SearchSpace(Graph):
         else:
             arch_str = convert_op_indices_to_str(self.get_hash())
 
+        tmp_list = dataset_api["api"].str2lists(arch_str)
+        matrix, ops_list = convert_arch_str_to_martrix_ops(tmp_list)
+        graph_data = convert_matrix_ops_to_graph(matrix, ops_list)
+
+        if self.model_type == MODEL_TYPE.KERAS:
+            data = convert_graph_to_keras_model_input(graph_data)
+        elif self.model_type == MODEL_TYPE.ENSEMBLE:
+            data = convert_graph_to_ndarry_input(graph_data)
+        else:
+            raise NotImplementedError()
+
+        query_results = self.surrogate_query(dataset_api['surrogate'], data)
+
         if metric == Metric.RAW:
             # return all data
-            return dataset_api["nb201_data"][arch_str]
+            return query_results
 
-        if dataset in ["cifar10", "cifar10-valid"]:
-            query_results = dataset_api["nb201_data"][arch_str]
-            # set correct cifar10 dataset
-            dataset = "cifar10-valid"
-        elif dataset == "cifar100":
-            query_results = dataset_api["nb201_data"][arch_str]
-        elif dataset == "ImageNet16-120":
-            query_results = dataset_api["nb201_data"][arch_str]
-        else:
+        if dataset not in ["cifar10"]:
             raise NotImplementedError("Invalid dataset")
 
         if metric == Metric.HP:
-            # return hyperparameter info
-            return query_results[dataset]["cost_info"]
+            raise NotImplementedError("Invalid HP")
         elif metric == Metric.TRAIN_TIME:
-            return query_results[dataset]["cost_info"]["train_time"]
+            return -1
 
         if full_lc and epoch == -1:
-            return query_results[dataset][metric_to_nb201[metric]]
+            return query_results[metric]
         elif full_lc and epoch != -1:
-            return query_results[dataset][metric_to_nb201[metric]][:epoch]
+            return query_results[metric][:epoch]
         else:
             # return the value of the metric only at the specified epoch
-            return query_results[dataset][metric_to_nb201[metric]][epoch]
+            return query_results[metric][epoch]
 
     def get_op_indices(self) -> list:
         if self.op_indices is None:

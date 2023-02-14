@@ -153,3 +153,44 @@ def convert_op_indices_to_str(op_indices):
     ]
 
     return "|{}|+|{}|{}|+|{}|{}|{}|".format(*op_edge_list)
+
+
+import numpy as np
+import spektral
+from typing import List
+
+def convert_matrix_ops_to_graph(matrix, ops):
+    features_dict = {'INPUT': 0, 'none': 1, 'skip_connect': 2, 'nor_conv_1x1': 3, 'nor_conv_3x3': 4,
+                     'avg_pool_3x3': 5, 'OUTPUT': 6}
+
+    num_features = len(features_dict)
+    num_nodes = matrix.shape[0]
+
+    # Node features X
+    x = np.zeros((num_nodes, num_features), dtype=float)  # num_nodes * (features + metadata + num_layer)
+    for i in range(len(ops)):
+        x[i][features_dict[ops[i]]] = 1
+
+    # Adjacency matrix A
+    a = np.array(matrix).astype(float)
+
+    return spektral.data.Graph(x=x, a=a)
+
+
+def convert_arch_str_to_martrix_ops(arch_list: List):
+    template_array = np.zeros((8, 8), dtype=int)
+    template_array[0][1] = template_array[0][2] = template_array[0][3] = 1
+    template_array[1][4] = template_array[1][6] = 1
+    template_array[2][5] = 1
+    template_array[3][7] = 1
+    template_array[4][6] = 1
+    template_array[5][7] = template_array[6][7] = 1
+
+    ops_list = ['INPUT']
+    for j in range(3):
+        for k in range(3):
+            if j < len(arch_list[k]):
+                ops_list.append(arch_list[k][j][0])
+    ops_list.append('OUTPUT')
+
+    return template_array, ops_list

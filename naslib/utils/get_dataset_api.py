@@ -66,7 +66,7 @@ def get_nasbench201_api(dataset=None):
         #'cifar10': 'nb201_cifar10_full_training.pickle',
         #'cifar100': 'nb201_cifar100_full_training.pickle',
         #'ImageNet16-120': 'nb201_ImageNet16_full_training.pickle'
-        'cifar10': 'NATS-tss-v1_0-3ffb9-simple.tar'
+        'cifar10': 'NATS-tss-v1_0-3ffb9-simple'
     }
 
     datafile_path = os.path.join(get_project_root(), 'data', datafiles[dataset])
