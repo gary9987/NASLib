@@ -149,9 +149,11 @@ class NasBench201SearchSpace(Graph):
             )
 
     def surrogate_query(self, model, data) -> Dict[Metric, np.ndarray]:
-        validation_accuracy = model.predict(data).flatten().astype(float)
-        # TODO train acc
-        return {Metric.TRAIN_ACCURACY: np.array([float(-1)]*validation_accuracy.shape[0]),
+        pred = model.predict(data).flatten().astype(float)
+        train_accuracy = pred[0: pred.shape[0]//2]
+        validation_accuracy = pred[pred.shape[0]//2: pred.shape[0]]
+
+        return {Metric.TRAIN_ACCURACY: train_accuracy,
                 Metric.VAL_ACCURACY: validation_accuracy,
                 Metric.TEST_ACCURACY: np.array([float(-1)]*validation_accuracy.shape[0])}
 
@@ -172,8 +174,6 @@ class NasBench201SearchSpace(Graph):
         if metric != Metric.RAW and metric != Metric.ALL:
             assert dataset in [
                 "cifar10",
-                "cifar100",
-                "ImageNet16-120",
             ], "Unknown dataset: {}".format(dataset)
         if dataset_api is None:
             raise NotImplementedError("Must pass in dataset_api to query NAS-Bench-201")
