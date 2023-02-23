@@ -2,6 +2,8 @@ import logging
 import sys
 import keras
 import tensorflow as tf
+# If using HB:
+#   from naslib.defaults.trainer_x11 import Trainer
 from naslib.defaults.trainer import Trainer
 from naslib.optimizers import (
     DARTSOptimizer,
@@ -12,6 +14,7 @@ from naslib.optimizers import (
     LocalSearch,
     Bananas,
     BasePredictor,
+    HB
 )
 
 from naslib.search_spaces import (
@@ -49,6 +52,7 @@ if __name__ == '__main__':
         "ls": LocalSearch(config),
         "bananas": Bananas(config),
         "bp": BasePredictor(config),
+        "hb": HB(config)
     }
 
     # Changing the search space is one line of code
@@ -89,7 +93,7 @@ if __name__ == '__main__':
 
     # Changing the optimizer is one line of code
     # optimizer = supported_optimizers[config.optimizer]
-    optimizer = supported_optimizers["bananas"]
+    optimizer = supported_optimizers["ls"]
     optimizer.adapt_search_space(search_space, dataset_api=dataset_api)
 
     # Start the search and evaluation

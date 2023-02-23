@@ -5,6 +5,7 @@ out_dir: run
 optimizer: darts
 
 search:
+  budgets: 400000
   checkpoint_freq: 5
   batch_size: 64
   learning_rate: 0.025

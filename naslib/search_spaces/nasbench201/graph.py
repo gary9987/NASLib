@@ -1,3 +1,5 @@
+from typing import Dict, Union, Any
+
 import numpy as np
 import random
 import itertools
@@ -5,6 +7,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import *
+
+from numpy import ndarray
 
 from naslib.search_spaces.core import primitives as ops
 from naslib.search_spaces.core.graph import Graph
@@ -139,6 +143,10 @@ class NasBench201SearchSpace(Graph):
 
         self._set_cell_ops()
 
+    def get_max_epochs(self):
+        # Return the max number of epochs that can be queried
+        return 199
+
     def _set_cell_ops(self) -> None:
         # set the ops at the cells (channel dependent)
         for scope, c in zip(self.OPTIMIZER_SCOPE, self.channels):
@@ -148,7 +156,7 @@ class NasBench201SearchSpace(Graph):
                 private_edge_data=True,
             )
 
-    def surrogate_query(self, model, data) -> Dict[Metric, np.ndarray]:
+    def surrogate_query(self, model, data) -> Dict[str, Union[ndarray, Any]]:
         validation_accuracy = model.predict(data).flatten().astype(float)
         '''
         #print(pred.shape)
@@ -156,9 +164,9 @@ class NasBench201SearchSpace(Graph):
         validation_accuracy = pred[pred.shape[0]//2: pred.shape[0]]
         '''
 
-        return {Metric.TRAIN_ACCURACY: np.array([float(-1)]*validation_accuracy.shape[0]),
-                Metric.VAL_ACCURACY: validation_accuracy,
-                Metric.TEST_ACCURACY: np.array([float(-1)]*validation_accuracy.shape[0])}
+        return {'train_acc': np.array([float(-1)]*validation_accuracy.shape[0]).tolist(),
+                'valid_acc': validation_accuracy.tolist(),
+                'test_acc': np.array([float(-1)]*validation_accuracy.shape[0]).tolist()}
 
     def query(
             self,
@@ -182,9 +190,9 @@ class NasBench201SearchSpace(Graph):
             raise NotImplementedError("Must pass in dataset_api to query NAS-Bench-201")
 
         metric_to_nb201 = {
-            Metric.TRAIN_ACCURACY: "train_acc1es",
-            Metric.VAL_ACCURACY: "eval_acc1es",
-            Metric.TEST_ACCURACY: "eval_acc1es",
+            Metric.TRAIN_ACCURACY: "train_acc",
+            Metric.VAL_ACCURACY: "valid_acc",
+            Metric.TEST_ACCURACY: "test_acc",
             Metric.TRAIN_LOSS: "train_losses",
             Metric.VAL_LOSS: "eval_losses",
             Metric.TEST_LOSS: "eval_losses",
@@ -228,12 +236,12 @@ class NasBench201SearchSpace(Graph):
             return -1
 
         if full_lc and epoch == -1:
-            return query_results[metric]
+            return query_results[metric_to_nb201[metric]]
         elif full_lc and epoch != -1:
-            return query_results[metric][:epoch]
+            return query_results[metric_to_nb201[metric]][:epoch]
         else:
             # return the value of the metric only at the specified epoch
-            return query_results[metric][epoch]
+            return query_results[metric_to_nb201[metric]][epoch]
 
     def get_op_indices(self) -> list:
         if self.op_indices is None:
