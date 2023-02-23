@@ -54,13 +54,17 @@ if __name__ == '__main__':
     # Changing the search space is one line of code
     # search_space = SimpleCellSearchSpace()
 
-    search_space = NasBench101SearchSpace(model_type=MODEL_TYPE.ENSEMBLE)
+    search_space = NasBench201SearchSpace(model_type=MODEL_TYPE.KERAS)
     # search_space = graph.NasBench101SearchSpace()
     # search_space = HierarchicalSearchSpace()
     # search_space = NasBench301SearchSpace()
     # search_space = NasBench201SearchSpace()
 
-    dataset_api = utils.get_dataset_api('nasbench101')
+    dataset_api = utils.get_dataset_api('nasbench201', dataset='cifar10')
+
+    # keras 201
+    weight_path = 'nb201_gin_model'
+    dataset_api['surrogate'] = keras.models.load_model(weight_path)
 
     '''
     # keras
@@ -75,11 +79,13 @@ if __name__ == '__main__':
         dataset_api['surrogate'] = pickle.load(f)
     '''
 
+    '''
     # xgb
     weight_path = 'xgb_size120500_0'
     model = XGBRegressor()
     model.load_model(weight_path)
     dataset_api['surrogate'] = model
+    '''
 
     # Changing the optimizer is one line of code
     # optimizer = supported_optimizers[config.optimizer]

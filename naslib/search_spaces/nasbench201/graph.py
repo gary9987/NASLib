@@ -149,11 +149,14 @@ class NasBench201SearchSpace(Graph):
             )
 
     def surrogate_query(self, model, data) -> Dict[Metric, np.ndarray]:
-        pred = model.predict(data).flatten().astype(float)
+        validation_accuracy = model.predict(data).flatten().astype(float)
+        '''
+        #print(pred.shape)
         train_accuracy = pred[0: pred.shape[0]//2]
         validation_accuracy = pred[pred.shape[0]//2: pred.shape[0]]
+        '''
 
-        return {Metric.TRAIN_ACCURACY: train_accuracy,
+        return {Metric.TRAIN_ACCURACY: np.array([float(-1)]*validation_accuracy.shape[0]),
                 Metric.VAL_ACCURACY: validation_accuracy,
                 Metric.TEST_ACCURACY: np.array([float(-1)]*validation_accuracy.shape[0])}
 
@@ -310,7 +313,7 @@ class NasBench201SearchSpace(Graph):
             for op_index in available:
                 nbr_op_indices = list(self.op_indices).copy()
                 nbr_op_indices[edge] = op_index
-                nbr = NasBench201SearchSpace()
+                nbr = NasBench201SearchSpace(self.model_type)
                 nbr.set_op_indices(nbr_op_indices)
                 nbr_model = torch.nn.Module()
                 nbr_model.arch = nbr
