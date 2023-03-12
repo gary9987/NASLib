@@ -52,7 +52,8 @@ def convert_spec_to_model(spec):
 
 def convert_spec_to_tuple(spec):
     matrix = spec["matrix"].flatten()
-    ops = [all_ops.index(s) for s in spec["ops"]]
+    #ops = [all_ops.index(s) for s in spec["ops"]]
+    ops = [s for s in spec["ops"]]
     tup = tuple([*matrix, *ops])
 
     return tup

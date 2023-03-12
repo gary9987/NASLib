@@ -168,7 +168,7 @@ class NASBench(object):
     self.training_time_spent = 0.0
     self.total_epochs_spent = 0
 
-  def query(self, model_spec, epochs=108, stop_halfway=False):
+  def query(self, model_spec, query_idx: int, epochs=108, stop_halfway=False):
     """Fetch one of the evaluations for this model spec.
 
     Each call will sample one of the config['num_repeats'] evaluations of the
@@ -202,8 +202,8 @@ class NASBench(object):
                              % self.valid_epochs)
 
     fixed_stat, computed_stat = self.get_metrics_from_spec(model_spec)
-    sampled_index = random.randint(0, self.config['num_repeats'] - 1)
-    computed_stat = computed_stat[epochs][sampled_index]
+    assert query_idx < self.config['num_repeats']
+    computed_stat = computed_stat[epochs][query_idx]
 
     data = {}
     data['module_adjacency'] = fixed_stat['module_adjacency']

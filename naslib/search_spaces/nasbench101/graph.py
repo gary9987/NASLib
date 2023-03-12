@@ -188,7 +188,7 @@ class NasBench101SearchSpace(Graph):
         assert epoch in [
             -1,
             108,
-            200,
+            199,
         ], f"Metric is not available at epoch {epoch}. NAS-Bench-101 does not have full learning curve information. Available epochs are [4, 12, 36, and 108]."
 
         metric_to_nb101 = {
@@ -342,7 +342,7 @@ class NasBench101SearchSpace(Graph):
             new_spec = {"matrix": new_matrix, "ops": new_ops}
             model_spec = dataset_api["api"].ModelSpec(new_matrix, new_ops)
             if dataset_api["nb101_data"].is_valid(model_spec):
-                nbr = NasBench101SearchSpace()
+                nbr = NasBench101SearchSpace(self.model_type)
                 nbr.set_spec(new_spec)
                 nbr_model = torch.nn.Module()
                 nbr_model.arch = nbr
