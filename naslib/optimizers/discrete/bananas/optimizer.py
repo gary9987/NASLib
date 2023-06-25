@@ -260,7 +260,7 @@ class Bananas(MetaOptimizer):
 
     def train_statistics(self, report_incumbent=True):
         if report_incumbent:
-            best_arch = self.get_final_architecture()
+            best_arch, _ = self.get_final_architecture()
         else:
             best_arch = self.train_data[-1].arch
         
@@ -294,14 +294,14 @@ class Bananas(MetaOptimizer):
             ) 
 
     def test_statistics(self):
-        best_arch = self.get_final_architecture()
+        best_arch, _ = self.get_final_architecture()
         if self.search_space.space_name != "nasbench301":
             return best_arch.query(Metric.RAW, self.dataset, dataset_api=self.dataset_api)
         else:
             return -1
 
     def get_final_architecture(self):
-        return max(self.history, key=lambda x: x.accuracy).arch
+        return max(self.history, key=lambda x: x.accuracy).arch, max(self.history, key=lambda model: model.arch.query(Metric.TEST_ACCURACY, self.dataset, dataset_api=self.dataset_api)).arch
 
     def get_op_optimizer(self):
         raise NotImplementedError()

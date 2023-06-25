@@ -74,12 +74,12 @@ class RandomSearch(MetaOptimizer):
         """
         Returns the sampled architecture with the lowest validation error.
         """
-        return max(self.sampled_archs, key=lambda x: x.accuracy).arch
+        return max(self.history, key=lambda x: x.accuracy).arch, max(self.history, key=lambda model: model.arch.query(Metric.TEST_ACCURACY, self.dataset, dataset_api=self.dataset_api)).arch
 
     def train_statistics(self, report_incumbent: bool = True):
 
         if report_incumbent:
-            best_arch = self.get_final_architecture()
+            best_arch, _ = self.get_final_architecture()
         else:
             best_arch = self.sampled_archs[-1].arch
 
@@ -99,7 +99,7 @@ class RandomSearch(MetaOptimizer):
         )
 
     def test_statistics(self):
-        best_arch = self.get_final_architecture()
+        best_arch, _ = self.get_final_architecture()
         return best_arch.query(Metric.RAW, self.dataset, dataset_api=self.dataset_api)
 
     def get_op_optimizer(self):

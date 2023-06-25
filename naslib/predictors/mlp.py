@@ -8,7 +8,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
 from naslib.utils import AverageMeterGroup
-from naslib.predictors.utils.encodings import encode
+from naslib.utils.encodings import EncodingType
 from naslib.predictors import Predictor
 
 # NOTE: faster on CPU
@@ -66,7 +66,7 @@ class FeedforwardNet(nn.Module):
 class MLPPredictor(Predictor):
     def __init__(
         self,
-        encoding_type="adjacency_one_hot",
+        encoding_type=EncodingType.ADJACENCY_ONE_HOT,
         ss_type="nasbench201",
         hpo_wrapper=False,
         hparams_from_file=False
@@ -75,11 +75,11 @@ class MLPPredictor(Predictor):
         self.ss_type = ss_type
         self.hpo_wrapper = hpo_wrapper
         self.default_hyperparams = {
-            "num_layers": 20,
+            "num_layers": 10,
             "layer_width": 20,
             "batch_size": 32,
-            "lr": 0.001,
-            "regularization": 0.2,
+            "lr": 0.01,
+            "regularization": 0.0,
         }
         self.hyperparams = None
         self.hparams_from_file = hparams_from_file
@@ -88,7 +88,7 @@ class MLPPredictor(Predictor):
         predictor = FeedforwardNet(**kwargs)
         return predictor
 
-    def fit(self, xtrain, ytrain, train_info=None, epochs=500, loss="mae", verbose=0):
+    def fit(self, xtrain, ytrain, train_info=None, epochs=150, loss="mae", verbose=0):
 
         if self.hparams_from_file and self.hparams_from_file not in ['False', 'None'] \
         and os.path.exists(self.hparams_from_file):
@@ -108,7 +108,7 @@ class MLPPredictor(Predictor):
         if self.encoding_type is not None:
             _xtrain = np.array(
                 [
-                    encode(arch, encoding_type=self.encoding_type, ss_type=self.ss_type)
+                    arch.encode(encoding_type=self.encoding_type)
                     for arch in xtrain
                 ]
             )
@@ -179,7 +179,7 @@ class MLPPredictor(Predictor):
         if self.encoding_type is not None:
             xtest = np.array(
                 [
-                    encode(arch, encoding_type=self.encoding_type, ss_type=self.ss_type)
+                    arch.encode(encoding_type=self.encoding_type)
                     for arch in xtest
                 ]
             )

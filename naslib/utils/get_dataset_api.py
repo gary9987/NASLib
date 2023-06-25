@@ -2,7 +2,7 @@ import os
 import pickle
 import json
 from pathlib import Path
-
+from naslib.search_spaces.nasbench201.nb201_dataset import NasBench201Dataset
 from .asr import from_folder
 
 """
@@ -61,6 +61,7 @@ def get_nasbench201_api(dataset=None):
     """
     Load the NAS-Bench-201 data
     """
+    '''
     datafiles = {
         'cifar10': 'nb201_cifar10_full_training.pickle',
         'cifar100': 'nb201_cifar100_full_training.pickle',
@@ -71,11 +72,19 @@ def get_nasbench201_api(dataset=None):
         get_project_root(), 'data', datafiles[dataset])
     assert os.path.exists(datafile_path), f'Could not find {datafile_path}. Please download {datafiles[dataset]} from \
 https://drive.google.com/drive/folders/1rwmkqyij3I24zn5GSO6fGv2mzdEfPIEa'
+    
 
     with open(datafile_path, 'rb') as f:
         data = pickle.load(f)
+    '''
+    if os.path.exists(f'datasets/NasBench201Dataset_{dataset}.cache'):
+        datasets = pickle.load(open(f'datasets/NasBench201Dataset_{dataset}.cache', 'rb'))
+    else:
+        datasets = NasBench201Dataset(start=0, end=15624, dataset=dataset, hp=str(200), seed=False)
+        with open(f'datasets/NasBench201Dataset_{dataset}.cache', 'wb') as f:
+            pickle.dump(datasets, f)
 
-    return {"nb201_data": data}
+    return {"nb201_data": datasets.hash_to_metrics}
 
 
 def get_nasbench301_api(dataset):

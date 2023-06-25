@@ -15,6 +15,8 @@ from naslib.search_spaces.nasbench201.conversions import (
     convert_naslib_to_str,
     convert_op_indices_to_str,
 )
+from naslib.search_spaces.nasbench201.encodings import encode_201, encode_adjacency_one_hot_op_indices
+from naslib.utils.encodings import EncodingType
 
 from .primitives import ResNetBasicblock
 
@@ -154,7 +156,7 @@ class NasBench201SearchSpace(Graph):
             raise NotImplementedError()
         if metric != Metric.RAW and metric != Metric.ALL:
             assert dataset in [
-                "cifar10",
+                "cifar10-valid",
                 "cifar100",
                 "ImageNet16-120",
             ], "Unknown dataset: {}".format(dataset)
@@ -162,9 +164,9 @@ class NasBench201SearchSpace(Graph):
             raise NotImplementedError("Must pass in dataset_api to query NAS-Bench-201")
 
         metric_to_nb201 = {
-            Metric.TRAIN_ACCURACY: "train_acc1es",
-            Metric.VAL_ACCURACY: "eval_acc1es",
-            Metric.TEST_ACCURACY: "eval_acc1es",
+            Metric.TRAIN_ACCURACY: 0,
+            Metric.VAL_ACCURACY: 1,
+            Metric.TEST_ACCURACY: 2,
             Metric.TRAIN_LOSS: "train_losses",
             Metric.VAL_LOSS: "eval_losses",
             Metric.TEST_LOSS: "eval_losses",
@@ -184,7 +186,7 @@ class NasBench201SearchSpace(Graph):
 
         if metric == Metric.RAW:
             # return all data
-            return dataset_api["nb201_data"][arch_str]
+            return dataset_api["nb201_data"][arch_str][dataset]
 
         if dataset in ["cifar10", "cifar10-valid"]:
             query_results = dataset_api["nb201_data"][arch_str]
@@ -201,15 +203,16 @@ class NasBench201SearchSpace(Graph):
             # return hyperparameter info
             return query_results[dataset]["cost_info"]
         elif metric == Metric.TRAIN_TIME:
-            return query_results[dataset]["cost_info"]["train_time"]
+            #return query_results[dataset]["cost_info"]["train_time"]
+            return 0
 
         if full_lc and epoch == -1:
-            return query_results[dataset][metric_to_nb201[metric]]
+            raise NotImplementedError("Full learning curves not implemented for NAS-Bench-201")
         elif full_lc and epoch != -1:
-            return query_results[dataset][metric_to_nb201[metric]][:epoch]
+            raise NotImplementedError("Full learning curves not implemented for NAS-Bench-201")
         else:
-            # return the value of the metric only at the specified epoch
-            return query_results[dataset][metric_to_nb201[metric]][epoch]
+            # return the value of the metric only at the final epoch
+            return float(query_results[dataset][metric_to_nb201[metric]][epoch])
 
     def get_op_indices(self) -> list:
         if self.op_indices is None:
@@ -320,6 +323,9 @@ class NasBench201SearchSpace(Graph):
 
         assert len(outputs) == 1
         return outputs[0]
+
+    def encode(self, encoding_type=EncodingType.ADJACENCY_ONE_HOT):
+        return encode_201(self, encoding_type=encoding_type)
 
 
 def _set_ops(edge, C: int) -> None:
