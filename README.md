@@ -1,6 +1,6 @@
 # NASLIB
 ## For the original README please refer to [NASLIB](https://github.com/automl/NASLib)
-## This compare our work with LS, RS and RE
+## This is for comparing our work with LS, RS and RE
 ### Pre-request
 #### NASBench101
 - Please follow the instructions of the original NASLIB repo [NASLIB](https://github.com/automl/NASLib#queryable-benchmarks)
